@@ -11,6 +11,8 @@
 
 using namespace std;
 
+constexpr size_t N = 36, M = 84;
+// constexpr size_t N = 14, M = 5;
 constexpr size_t T = 1'000'000;
 constexpr std::array<pair<int, int>, 4> deltas{{{-1, 0}, {1, 0}, {0, -1}, {0, 1}}};
 
@@ -118,19 +120,6 @@ T1& operator -= (T1& var1, const T2& var2) {
     return var1;
 }
 
-template <int h, int w>
-class Size {
-public:
-    static constexpr int height = h;
-    static constexpr int width = w;
-
-    static std::string getName() {
-        return "S(" + std::to_string(height) + "," + to_string(width) +")";
-    }
-
-};
-
-template <typename PType, typename VType, typename VFlowType, int N, int M>
 class Fluid{
 public:
     Fluid(const std::vector<std::string> &srcField) {
@@ -178,24 +167,35 @@ public:
 
     std::array<Fixed<>, 256> rho;
 
-    Plane<PType> p, old_p;
+    Plane<Fixed<>> p, old_p;
 
-    template <typename Tp>
+
     struct VectorField {
-        Plane<array<Tp, deltas.size()>> v;
-        Tp &add(int x, int y, int dx, int dy, Tp dv) {
+        Plane<array<Fixed<>, deltas.size()>> v;
+        Fixed<> &add(int x, int y, int dx, int dy, Fixed<> dv) {
             return get(x, y, dx, dy) += dv;
         }
 
-        Tp &get(int x, int y, int dx, int dy) {
-            size_t i = ranges::find(deltas, pair(dx, dy)) - deltas.begin();
-            assert(i < deltas.size());
-            return v.p.at(x).at(y).at(i);
+        Fixed<> &get(int x, int y, int dx, int dy) {
+            if(dx == -1 && dy == 0) { // Changed ranges to if
+                return v.p.at(x).at(y).at(0);
+            }
+            else if(dx == 1 && dy == 0) {
+                return v.p.at(x).at(y).at(1);
+            }
+            else if(dx == 0 && dy == -1) {
+                return v.p.at(x).at(y).at(2);
+            }
+            else if(dx == 0 && dy == -1) {
+                return v.p.at(x).at(y).at(2);
+            }
+            else {
+                assert(false);
+            }
         }
     };
 
-    VectorField<VType> velocity{};
-    VectorField<VFlowType> velocity_flow{};
+    VectorField velocity{}, velocity_flow{};
     Plane<int> last_use;
     int UT = 0;
 
@@ -214,9 +214,9 @@ public:
                     continue;
                 }
                 // assert(v >= velocity_flow.get(x, y, dx, dy));
-                auto vp = min(Fixed<>(lim), Fixed<>(cap - flow));
+                auto vp = min(lim, Fixed<>(cap - flow));
                 if (last_use.p.at(nx).at(ny) == UT - 1) {
-                    velocity_flow.add(x, y, dx, dy, VFlowType(vp));
+                    velocity_flow.add(x, y, dx, dy, vp);
                     last_use.p.at(x).at(y) = UT;
                     // cerr << x << " " << y << " -> " << nx << " " << ny << " " << vp << " / " << lim << "\n";
                     return {vp, 1, {nx, ny}};
@@ -224,7 +224,7 @@ public:
                 auto [t, prop, end] = propagate_flow(nx, ny, vp);
                 ret += t;
                 if (prop) {
-                    velocity_flow.add(x, y, dx, dy, VFlowType(t));
+                    velocity_flow.add(x, y, dx, dy, t);
                     last_use.p.at(x).at(y) = UT;
                     // cerr << x << " " << y << " -> " << nx << " " << ny << " " << t << " / " << lim << "\n";
                     return {t, prop && end != pair(x, y), end};
@@ -283,10 +283,10 @@ public:
 
     struct ParticleParams {
         char type;
-        PType cur_p;
-        array<VType, deltas.size()> v;
+        Fixed<> cur_p;
+        array<Fixed<>, deltas.size()> v;
 
-        void swap_with(int x, int y, Plane<char, N, M + 1>& field, Plane<PType>& p, VectorField<VType>& velocity) {
+        void swap_with(int x, int y, Plane<char, N, M + 1>& field, Plane<Fixed<>>& p, VectorField& velocity) {
             swap(field.p.at(x).at(y), type);
             swap(p.p.at(x).at(y), cur_p);
             swap(velocity.v.p.at(x).at(y), v);
@@ -298,13 +298,13 @@ public:
         bool ret = false;
         int nx = -1, ny = -1;
         do {
-            std::array<VType, deltas.size()> tres;
-            VType sum = 0;
+            std::array<Fixed<>, deltas.size()> tres;
+            Fixed<> sum = 0;
             for (size_t i = 0; i < deltas.size(); ++i) {
                 auto [dx, dy] = deltas[i];
                 int nx = x + dx, ny = y + dy;
                 if (field.p.at(nx).at(ny) == '#' || last_use.p.at(nx).at(ny) == UT) {
-                    tres[i] = sum;
+                    tres.at(i) = sum;
                     continue;
                 }
                 auto v = velocity.get(x, y, dx, dy);
@@ -320,19 +320,19 @@ public:
                 break;
             }
 
-            VType p = random01() * sum;
-            size_t d = std::ranges::upper_bound(tres, p) - tres.begin();
+            Fixed<> p = random01() * sum;
+            size_t d = tres.at(0) > p ? 0 : tres.at(1) > p ? 1 : tres.at(2) > p ? 2 :tres.at(3) > p ? 3 : 4; // Changed ranges to if
 
-            auto [dx, dy] = deltas[d];
+            auto [dx, dy] = deltas.at(d);
             nx = x + dx;
             ny = y + dy;
             assert(velocity.get(x, y, dx, dy) > 0 && field.p.at(nx).at(ny) != '#' && last_use.p.at(nx).at(ny) < UT);
 
             ret = (last_use.p.at(nx).at(ny) == UT - 1 || propagate_move(nx, ny, false));
         } while (!ret);
-        last_use.p.at(x).at(y) = UT;
+        last_use.p.at(nx).at(ny) = UT;
         for (size_t i = 0; i < deltas.size(); ++i) {
-            auto [dx, dy] = deltas[i];
+            auto [dx, dy] = deltas.at(i);
             int nx = x + dx, ny = y + dy;
             if (field.p.at(nx).at(ny) != '#' && last_use.p.at(nx).at(ny) < UT - 1 && velocity.get(x, y, dx, dy) < 0) {
                 propagate_stop(nx, ny);
@@ -354,7 +354,7 @@ public:
     int main() {
         rho[' '] = 0.01;
         rho['.'] = 1000;
-        VType g = 0.1;
+        Fixed<> g = 0.1;
 
         for (size_t x = 0; x < N; ++x) {
             for (size_t y = 0; y < M; ++y) {
@@ -368,7 +368,8 @@ public:
 
         for (size_t i = 0; i < T; ++i) {
 
-            PType total_delta_p = 0;
+            Fixed<> total_delta_p = 0;
+            std::array<size_t, N> xRange;
             // Apply external forces
             for (size_t x = 0; x < N; ++x) {
                 for (size_t y = 0; y < M; ++y) {
@@ -387,7 +388,7 @@ public:
                         continue;
                     for (auto [dx, dy] : deltas) {
                         int nx = x + dx, ny = y + dy;
-                        if (field.p[nx][ny] != '#' && old_p.p[nx][ny] < old_p.p.at(x).at(y)) {
+                        if (field.p.at(nx).at(ny) != '#' && old_p.p.at(nx).at(ny) < old_p.p.at(x).at(y)) {
                             auto delta_p = old_p.p.at(x).at(y) - old_p.p[nx][ny];
                             auto force = delta_p;
                             auto &contr = velocity.get(nx, ny, -dx, -dy);
@@ -433,7 +434,7 @@ public:
                         auto new_v = velocity_flow.get(x, y, dx, dy);
                         if (old_v > 0) {
                             assert(new_v <= old_v);
-                            velocity.get(x, y, dx, dy) = VType(new_v);
+                            velocity.get(x, y, dx, dy) = new_v;
                             auto force = (old_v - new_v) * rho[(int) field.p[x][y]];
                             if (field.p.at(x).at(y) == '.')
                                 force *= 0.8;
@@ -477,67 +478,10 @@ public:
                 }
             }
         }
-        return 0;
     }
 };
 
-#define SIZES S(36, 84),S(40,40)
-#define S(w, h) Size<w, h>
-#define TYPES FIXED(32,16),FAST_FIXED(30,7),DOUBLE
-#define FIXED(a, b) Fixed<a,b>
-#define FAST_FIXED(a, b) FastFixed<a,b>
-#define DOUBLE Double
-#define FLOAT Float
-template <typename PType, typename VType, typename VFlowType, typename CurSize, typename... Sizes>
-void getFluidSize(int width, int height, const std::vector<std::string>& field  ) {
-    if(width == CurSize::width && height == CurSize::height) {
-        Fluid<PType, VType, VFlowType, CurSize::height, CurSize::width> fluid(field);
-        fluid.main();
-    }
-    if constexpr (sizeof...(Sizes) > 0) {
-        getFluidSize<PType, VType, VFlowType, Sizes...>(width, height, field);
-    }
-    ;
-
-}
-template <typename PType, typename VType, typename CurVFlowType, typename... Types>
-auto getFluidVFlowType(const std::string& vFlowTypeName, int width, int height, const std::vector<std::string>& field) {
-    if(vFlowTypeName == CurVFlowType::getName()) {
-        getFluidSize<PType, VType, CurVFlowType, SIZES>(width, height, field);
-    }
-    if constexpr (sizeof...(Types) > 0) {
-        getFluidVFlowType<PType, VType, Types...>(vFlowTypeName, width, height, field);
-    }
-    ;
-
-}
-
-template <typename PType, typename CurVType, typename... Types>
-auto getFluidVType(const std::string& vTypeName, const std::string& vFlowTypeName, int width, int height, const std::vector<std::string>& field) {
-    if(vTypeName == CurVType::getName()) {
-        getFluidVFlowType<PType, CurVType, TYPES>(vFlowTypeName, width, height, field);
-    }
-    if constexpr (sizeof...(Types) > 0) {
-        getFluidVType<PType, Types...>(vTypeName, vFlowTypeName, width, height, field);
-    }
-    ;
-
-}
-
-template <typename CurPType, typename... Types>
-auto getFluid(const std::string& pTypeName, const std::string& vTypeName, const std::string& vFlowTypeName, int width, int height, const std::vector<std::string>& field) {
-    if(pTypeName == CurPType::getName()) {
-        getFluidVType<CurPType, TYPES>(vTypeName, vFlowTypeName, width, height, field);
-    }
-    if constexpr (sizeof...(Types) > 0) {
-        getFluid<Types...>(pTypeName, vTypeName, vFlowTypeName, width, height, field);
-    }
-    ;
-
-}
-
 int main(int argc, char* argv[]) {
-
     std::string pTypeName;
     std::string vTypeName;
     std::string vFlowTypeName;
@@ -571,7 +515,7 @@ int main(int argc, char* argv[]) {
         field.push_back(line);
     }
     assert(field.size());
-    getFluid<TYPES>("FIXED(32,16)", "FIXED(32,16)", "FIXED(32,16)", field.at(0).size(), field.size(), field);
 
-    return 0;
+    Fluid fluid(field);
+    fluid.main();
 }
