@@ -134,6 +134,8 @@ public:
 template <typename PType, typename VType, typename VFlowType, int N, int M>
 class Fluid{
 public:
+    int rtN{N};
+    int rtM{M};
     Fluid(const std::vector<std::string> &srcField) {
         for(int i = 0; i < N; i++) {
             for(int j = 0; j < M; j++) {
@@ -142,12 +144,12 @@ public:
             field.p.at(i).at(M) = '\0';
         }
     };
-    Fluid(int rtN, int rtM, const std::vector<std::string> &srcField) : field(rtN, rtM + 1), p(rtN, rtM), old_p(rtN, rtM), velocity(rtN, rtM), velocity_flow(rtN, rtM), dirs(rtN, rtM), last_use(rtN, rtM) {
-        for(int i = 0; i < N; i++) {
-            for(int j = 0; j < M; j++) {
+    Fluid(int rtN, int rtM, const std::vector<std::string> &srcField) : rtN(rtN), rtM(rtM), field(rtN, rtM + 1), p(rtN, rtM), old_p(rtN, rtM), velocity(rtN, rtM), velocity_flow(rtN, rtM), dirs(rtN, rtM), last_use(rtN, rtM) {
+        for(int i = 0; i < rtN; i++) {
+            for(int j = 0; j < rtM; j++) {
                 field.p.at(i).at(j) = srcField.at(i).at(j);
             }
-            field.p.at(i).at(M) = '\0';
+            field.p.at(i).at(rtM) = '\0';
         }
     };
 
@@ -366,9 +368,10 @@ public:
         rho[' '] = 0.01;
         rho['.'] = 1000;
         VType g = 0.1;
-
-        for (size_t x = 0; x < N; ++x) {
-            for (size_t y = 0; y < M; ++y) {
+        const int useN = N ? N : rtN;
+        const int useM = M ? M : rtM;
+        for (size_t x = 0; x < useN; ++x) {
+            for (size_t y = 0; y < useM; ++y) {
                 if (field.p.at(x).at(y) == '#')
                     continue;
                 for (auto [dx, dy] : deltas) {
@@ -381,8 +384,8 @@ public:
 
             PType total_delta_p = 0;
             // Apply external forces
-            for (size_t x = 0; x < N; ++x) {
-                for (size_t y = 0; y < M; ++y) {
+            for (size_t x = 0; x < useN; ++x) {
+                for (size_t y = 0; y < useM; ++y) {
                     if (field.p.at(x).at(y) == '#')
                         continue;
                     if (field.p.at(x + 1).at(y) != '#')
@@ -392,8 +395,8 @@ public:
 
             // Apply forces from p
             old_p = p;
-            for (size_t x = 0; x < N; ++x) {
-                for (size_t y = 0; y < M; ++y) {
+            for (size_t x = 0; x < useN; ++x) {
+                for (size_t y = 0; y < useM; ++y) {
                     if (field.p.at(x).at(y) == '#')
                         continue;
                     for (auto [dx, dy] : deltas) {
@@ -422,8 +425,8 @@ public:
             do {
                 UT += 2;
                 prop = 0;
-                for (size_t x = 0; x < N; ++x) {
-                    for (size_t y = 0; y < M; ++y) {
+                for (size_t x = 0; x < useN; ++x) {
+                    for (size_t y = 0; y < useM; ++y) {
                         if (field.p.at(x).at(y) != '#' && last_use.p.at(x).at(y) != UT) {
                             auto [t, local_prop, _] = propagate_flow(x, y, 1);
                             if (t > 0) {
@@ -435,8 +438,8 @@ public:
             } while (prop);
 
             // Recalculate p with kinetic energy
-            for (size_t x = 0; x < N; ++x) {
-                for (size_t y = 0; y < M; ++y) {
+            for (size_t x = 0; x < useN; ++x) {
+                for (size_t y = 0; y < useM; ++y) {
                     if (field.p.at(x).at(y) == '#')
                         continue;
                     for (auto [dx, dy] : deltas) {
@@ -462,8 +465,8 @@ public:
 
             UT += 2;
             prop = false;
-            for (size_t x = 0; x < N; ++x) {
-                for (size_t y = 0; y < M; ++y) {
+            for (size_t x = 0; x < useN; ++x) {
+                for (size_t y = 0; y < useM; ++y) {
                     if (field.p.at(x).at(y) != '#' && last_use.p.at(x).at(y) != UT) {
                         if (random01() < move_prob(x, y)) {
                             prop = true;
@@ -477,7 +480,7 @@ public:
 
             if (prop) {
                 cout << "Tick " << i << ":\n";
-                for (size_t x = 0; x < N; ++x) {
+                for (size_t x = 0; x < useN; ++x) {
                     for(size_t y = 0; y < field.p[x].size(); y++) {
                         if(!x) {
                             break;
@@ -560,13 +563,13 @@ int main(int argc, char* argv[]) {
     for(int i = 1; i < argc; i++) {
         std::string cur_arg(argv[i]);
         if(cur_arg.starts_with("--p-type=")) {
-            pTypeName = cur_arg.substr(cur_arg.find('='));
+            pTypeName = cur_arg.substr(cur_arg.find('=') + 1);
         }
         else if(cur_arg.starts_with("--v-type=")) {
-            vTypeName = cur_arg.substr(cur_arg.find('='));
+            vTypeName = cur_arg.substr(cur_arg.find('=') + 1);
         }
         else if(cur_arg.starts_with("--v-flow-type=")) {
-            vFlowTypeName = cur_arg.substr(cur_arg.find('='));
+            vFlowTypeName = cur_arg.substr(cur_arg.find('=') + 1);
         }
         else {
             fileName = cur_arg;
@@ -587,7 +590,7 @@ int main(int argc, char* argv[]) {
     assert(field.size());
     //Fluid<Fixed<>, Fixed<>, Fixed<>, 36, 84> fluid(field);
     //fluid.main();
-    getFluid<TYPES>("FIXED(32,16)", "FIXED(32,16)", "FIXED(32,16)", field.at(0).size(), field.size(), field);
+    getFluid<TYPES>(pTypeName, vTypeName, vFlowTypeName, field.at(0).size(), field.size(), field);
 
     return 0;
 }
