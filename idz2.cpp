@@ -9,6 +9,7 @@
 #include <fstream>
 #include <memory>
 #include <typeinfo>
+#include <array>
 
 using namespace std;
 
