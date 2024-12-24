@@ -9,6 +9,7 @@
 #include <fstream>
 #include <memory>
 #include <array>
+#include <ranges>
 
 using namespace std;
 

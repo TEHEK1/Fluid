@@ -10,6 +10,7 @@
 #include <memory>
 #include <typeinfo>
 #include <array>
+#include <ranges>
 
 using namespace std;
 
