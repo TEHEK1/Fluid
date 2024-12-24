@@ -8,6 +8,7 @@
 #include <string>
 #include <fstream>
 #include <memory>
+#include <array>
 
 using namespace std;
 
