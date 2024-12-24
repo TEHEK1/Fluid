@@ -11,6 +11,8 @@
 #include <typeinfo>
 #include <array>
 #include <ranges>
+#include <algorithm>
+#include <bits/stdc++.h>
 
 using namespace std;
 
@@ -108,14 +110,15 @@ public:
     ValueType m_value;
 };
 
-template <typename T1, typename T2>
+template <typename T>
+concept DerivedFromType = std::is_base_of<Type, T>::value || std::is_same<T, double>::value;
+
+template <DerivedFromType T1, DerivedFromType T2>
 T1& operator += (T1& var1, const T2& var2) {
     var1 = var1 + var2;
     return var1;
 }
-
-
-template <typename T1, typename T2>
+template <DerivedFromType T1, DerivedFromType T2>
 T1& operator -= (T1& var1, const T2& var2) {
     var1 = var1 - var2;
     return var1;
