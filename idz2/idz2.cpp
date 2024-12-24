@@ -500,9 +500,9 @@ public:
     }
 };
 
-#define SIZES S(36, 84),S(40,40)
+//#define SIZES S(36, 84),S(40,40)
 #define S(w, h) Size<w, h>
-#define TYPES FIXED(32,16),FAST_FIXED(30,7),DOUBLE
+//#define TYPES FIXED(32,16),FAST_FIXED(30,7),DOUBLE
 #define FIXED(a, b) Fixed<a,b>
 #define FAST_FIXED(a, b) FastFixed<a,b>
 #define DOUBLE Double
@@ -530,8 +530,9 @@ auto getFluidVFlowType(const std::string& vFlowTypeName, int width, int height, 
     else if constexpr (sizeof...(Types) > 0) {
         getFluidVFlowType<PType, VType, Types...>(vFlowTypeName, width, height, field);
     }
-    ;
-
+    else {
+        cerr << "Unsupported VFlowType" << endl;
+    }
 }
 
 template <typename PType, typename CurVType, typename... Types>
@@ -542,8 +543,9 @@ auto getFluidVType(const std::string& vTypeName, const std::string& vFlowTypeNam
     else if constexpr (sizeof...(Types) > 0) {
         getFluidVType<PType, Types...>(vTypeName, vFlowTypeName, width, height, field);
     }
-    ;
-
+    else {
+        cerr << "Unsupported VType" << endl;
+    }
 }
 
 template <typename CurPType, typename... Types>
@@ -554,8 +556,9 @@ auto getFluid(const std::string& pTypeName, const std::string& vTypeName, const 
     else if constexpr (sizeof...(Types) > 0) {
         getFluid<Types...>(pTypeName, vTypeName, vFlowTypeName, width, height, field);
     }
-    ;
-
+    else {
+        cerr << "Unsupported PType" << endl;
+    }
 }
 
 int main(int argc, char* argv[]) {

@@ -12,6 +12,7 @@
 #include <ranges>
 #include <algorithm>
 #include <bits/stdc++.h>
+#include <chrono>
 
 using namespace std;
 
@@ -329,6 +330,7 @@ bool propagate_move(int x, int y, bool is_first) {
 int dirs[N][M]{};
 
 int main() {
+    auto program_start = std::chrono::steady_clock::now();
     rho[' '] = 0.01;
     rho['.'] = 1000;
     Fixed g = 0.1;
@@ -447,5 +449,9 @@ int main() {
                 cout << field[x] << "\n";
             }
         }
+        if(i % 400 == 0) {
+            cout << "Tick " << i << ":Total ms:" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - program_start).count() ;
+        }
     }
+    cout << "Total ms:" << std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - program_start).count() ;
 }
